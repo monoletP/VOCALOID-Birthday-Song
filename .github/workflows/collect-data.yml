@@ -3,9 +3,9 @@ name: VOCALOID 데이터 수집
 # 언제 실행할지 설정
 on:
   schedule:
-    # 매주 일요일 한국시간 오전 6시 (UTC 21시)에 실행
-    - cron: '0 21 1,15 * *'
-  
+    # 6,12월 1일 오전 6시
+    - cron: '0 21 1 6,12 *'
+
   # 수동으로도 실행 가능하게 설정
   workflow_dispatch:
   
