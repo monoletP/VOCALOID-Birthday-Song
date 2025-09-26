@@ -97,93 +97,30 @@
     </div>
 
     <script>
-        // makeFiltersAllYears 함수 (JavaScript 버전)
-        function makeFiltersAllYears(month, day) {
-            const filters = [];
-            
-            for (let year = 2007; year <= 2030; year++) {
-                try {
-                    const dtFrom = new Date(year, month - 1, day);
-                    const dtTo = new Date(year, month - 1, day + 1);
-                    
-                    if (dtFrom.getMonth() !== month - 1 || dtFrom.getDate() !== day) {
-                        continue;
-                    }
-                    
-                    const fromISO = formatToJST(dtFrom);
-                    const toISO = formatToJST(dtTo);
-                    
-                    filters.push({
-                        type: "range",
-                        field: "startTime",
-                        from: fromISO,
-                        to: toISO,
-                        include_lower: true
-                    });
-                } catch (error) {
-                    continue;
-                }
-            }
-            
-            return {
-                type: "and",
-                filters: [
-                    { type: "or", filters: filters },
-                    { 
-                        type: "not", 
-                        filter: { 
-                            type: "equal", 
-                            field: "tags", 
-                            value: "歌ってみた" 
-                        }
-                    }
-                ]
-            };
-        }
-
-        function formatToJST(date) {
-            const year = date.getFullYear();
-            const month = String(date.getMonth() + 1).padStart(2, '0');
-            const day = String(date.getDate()).padStart(2, '0');
-            const hours = String(date.getHours()).padStart(2, '0');
-            const minutes = String(date.getMinutes()).padStart(2, '0');
-            const seconds = String(date.getSeconds()).padStart(2, '0');
-            
-            return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}+09:00`;
-        }
-
-        // API 검색 함수
+        // 미리 수집된 데이터 읽기 함수 (CORS 문제 해결!)
         async function searchVocaloidSongs(month, day, maxCount) {
-            const filtersDict = makeFiltersAllYears(month, day);
-            
-            if (!filtersDict || !filtersDict.filters) {
-                throw new Error("유효한 날짜가 없습니다.");
-            }
-
-            const API_URL = "https://snapshot.search.nicovideo.jp/api/v2/snapshot/video/contents/search";
-            
-            const params = new URLSearchParams({
-                q: "VOCALOID",
-                targets: "tagsExact",
-                fields: "contentId,title,startTime,thumbnailUrl,viewCounter",
-                jsonFilter: JSON.stringify(filtersDict),
-                _sort: "-viewCounter",
-                _limit: maxCount,
-                _context: "vocaloid_search"
-            });
-
-            const response = await fetch(`${API_URL}?${params}`, {
-                headers: {
-                    "User-Agent": "vocaloid_birthday_search/1.0"
+            try {
+                // GitHub Actions가 수집한 JSON 파일 읽기
+                const response = await fetch('./data/vocaloid_birthday_songs.json');
+                
+                if (!response.ok) {
+                    throw new Error('데이터 파일을 불러올 수 없습니다. GitHub Actions가 아직 실행되지 않았을 수 있습니다.');
                 }
-            });
-
-            if (!response.ok) {
-                throw new Error(`API 요청 실패: ${response.status}`);
+                
+                const jsonData = await response.json();
+                const allData = jsonData.data || {};
+                
+                // MM-DD 형식의 키로 데이터 찾기
+                const key = `${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+                const songs = allData[key] || [];
+                
+                // 최대 곡 수만큼 자르기
+                return songs.slice(0, maxCount);
+                
+            } catch (error) {
+                console.error('데이터 로딩 오류:', error);
+                throw new Error(`데이터를 불러올 수 없습니다: ${error.message}`);
             }
-
-            const data = await response.json();
-            return data.data || [];
         }
 
         // 결과 표시 함수
@@ -237,8 +174,20 @@
                 const songs = await searchVocaloidSongs(month, day, maxCount);
                 displayResults(songs, month, day);
             } catch (error) {
+                let errorMessage = error.message;
+                if (error.message.includes('CORS')) {
+                    errorMessage = '네트워크 정책으로 인한 접근 제한입니다. GitHub Pages에서 정상 작동할 예정입니다.';
+                } else if (error.message.includes('Failed to fetch')) {
+                    errorMessage = '네트워크 연결 문제 또는 CORS 정책으로 인한 오류입니다.';
+                }
+                
                 document.getElementById('results').innerHTML = 
-                    '<p>❌ 검색 중 오류가 발생했습니다: ' + error.message + '</p>';
+                    '<p>❌ 검색 중 오류가 발생했습니다: ' + errorMessage + '</p>' +
+                    '<p>💡 <strong>해결 방법:</strong></p>' +
+                    '<ul>' +
+                    '<li>GitHub Pages로 배포하면 정상 작동합니다</li>' +
+                    '<li>또는 <a href="https://cors-anywhere.herokuapp.com/corsdemo" target="_blank">CORS Anywhere 데모를 활성화</a>해보세요</li>' +
+                    '</ul>';
                 console.error('검색 오류:', error);
             }
             

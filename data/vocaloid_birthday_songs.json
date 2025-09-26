@@ -1,0 +1,46 @@
+{
+  "metadata": {
+    "collected_at": "2025-09-27T15:30:00.000Z",
+    "total_days": 2,
+    "total_songs": 4,
+    "description": "VOCALOID 곡들의 생일별 데이터베이스 (테스트용 샘플)"
+  },
+  "data": {
+    "01-01": [
+      {
+        "contentId": "sm12345678",
+        "title": "새해 첫날의 미쿠 노래",
+        "startTime": "2023-01-01T12:00:00+09:00",
+        "thumbnailUrl": "https://img.cdn.nimg.jp/s/nicovideo/thumbnails/12345678/12345678.M.jpg",
+        "viewCounter": 150000,
+        "lengthSeconds": 240
+      },
+      {
+        "contentId": "sm87654321",
+        "title": "신년맞이 VOCALOID 메들리",
+        "startTime": "2023-01-01T18:30:00+09:00",
+        "thumbnailUrl": "https://img.cdn.nimg.jp/s/nicovideo/thumbnails/87654321/87654321.M.jpg",
+        "viewCounter": 89000,
+        "lengthSeconds": 320
+      }
+    ],
+    "12-25": [
+      {
+        "contentId": "sm11111111",
+        "title": "크리스마스 하츠네 미쿠 송",
+        "startTime": "2023-12-25T20:00:00+09:00",
+        "thumbnailUrl": "https://img.cdn.nimg.jp/s/nicovideo/thumbnails/11111111/11111111.M.jpg",
+        "viewCounter": 250000,
+        "lengthSeconds": 280
+      },
+      {
+        "contentId": "sm22222222",
+        "title": "성탄절 VOCALOID 콜라보",
+        "startTime": "2023-12-25T14:15:00+09:00",
+        "thumbnailUrl": "https://img.cdn.nimg.jp/s/nicovideo/thumbnails/22222222/22222222.M.jpg",
+        "viewCounter": 180000,
+        "lengthSeconds": 195
+      }
+    ]
+  }
+}
