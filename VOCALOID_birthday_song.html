@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>🎵 VOCALOID 생일송 검색기</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1000px;
+            margin: 20px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .input-group {
+            margin: 20px 0;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input[type="date"], input[type="number"] {
+            padding: 10px;
+            font-size: 16px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            margin-right: 10px;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        #results {
+            margin-top: 30px;
+        }
+        .song-item {
+            border: 1px solid #ddd;
+            margin: 10px 0;
+            padding: 15px;
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .thumbnail {
+            width: 100px;
+            height: 75px;
+            object-fit: cover;
+            border-radius: 5px;
+        }
+        .song-info {
+            flex: 1;
+        }
+        .song-title {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .song-meta {
+            color: #666;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎵 VOCALOID 생일송 검색기</h1>
+        <p>생일을 입력하면 해당 날짜에 업로드된 VOCALOID 곡들을 찾아드려요!</p>
+        
+        <form id="searchForm">
+            <div class="input-group">
+                <label for="birthday">생일을 선택하세요:</label>
+                <input type="date" id="birthday" required />
+                <label for="maxCount">최대 곡 수:</label>
+                <input type="number" id="maxCount" value="50" min="1" max="100" />
+                <button type="submit">🔍 검색하기</button>
+            </div>
+        </form>
+        
+        <div id="loading" style="display: none;">
+            검색 중... ⏳
+        </div>
+        
+        <div id="results"></div>
+    </div>
+
+    <script>
+        // makeFiltersAllYears 함수 (JavaScript 버전)
+        function makeFiltersAllYears(month, day) {
+            const filters = [];
+            
+            for (let year = 2007; year <= 2030; year++) {
+                try {
+                    const dtFrom = new Date(year, month - 1, day);
+                    const dtTo = new Date(year, month - 1, day + 1);
+                    
+                    if (dtFrom.getMonth() !== month - 1 || dtFrom.getDate() !== day) {
+                        continue;
+                    }
+                    
+                    const fromISO = formatToJST(dtFrom);
+                    const toISO = formatToJST(dtTo);
+                    
+                    filters.push({
+                        type: "range",
+                        field: "startTime",
+                        from: fromISO,
+                        to: toISO,
+                        include_lower: true
+                    });
+                } catch (error) {
+                    continue;
+                }
+            }
+            
+            return {
+                type: "and",
+                filters: [
+                    { type: "or", filters: filters },
+                    { 
+                        type: "not", 
+                        filter: { 
+                            type: "equal", 
+                            field: "tags", 
+                            value: "歌ってみた" 
+                        }
+                    }
+                ]
+            };
+        }
+
+        function formatToJST(date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            const seconds = String(date.getSeconds()).padStart(2, '0');
+            
+            return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}+09:00`;
+        }
+
+        // API 검색 함수
+        async function searchVocaloidSongs(month, day, maxCount) {
+            const filtersDict = makeFiltersAllYears(month, day);
+            
+            if (!filtersDict || !filtersDict.filters) {
+                throw new Error("유효한 날짜가 없습니다.");
+            }
+
+            const API_URL = "https://snapshot.search.nicovideo.jp/api/v2/snapshot/video/contents/search";
+            
+            const params = new URLSearchParams({
+                q: "VOCALOID",
+                targets: "tagsExact",
+                fields: "contentId,title,startTime,thumbnailUrl,viewCounter",
+                jsonFilter: JSON.stringify(filtersDict),
+                _sort: "-viewCounter",
+                _limit: maxCount,
+                _context: "vocaloid_search"
+            });
+
+            const response = await fetch(`${API_URL}?${params}`, {
+                headers: {
+                    "User-Agent": "vocaloid_birthday_search/1.0"
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error(`API 요청 실패: ${response.status}`);
+            }
+
+            const data = await response.json();
+            return data.data || [];
+        }
+
+        // 결과 표시 함수
+        function displayResults(songs, month, day) {
+            const resultsDiv = document.getElementById('results');
+            
+            if (songs.length === 0) {
+                resultsDiv.innerHTML = `
+                    <p>😢 ${month}월 ${day}일에 업로드된 VOCALOID 곡을 찾지 못했습니다.</p>
+                `;
+                return;
+            }
+
+            resultsDiv.innerHTML = `
+                <h2>🎵 ${month}월 ${day}일 업로드된 VOCALOID 곡들 (${songs.length}개)</h2>
+                ${songs.map((song, index) => `
+                    <div class="song-item">
+                        <img src="${song.thumbnailUrl}" alt="썸네일" class="thumbnail" />
+                        <div class="song-info">
+                            <div class="song-title">${song.title}</div>
+                            <div class="song-meta">
+                                업로드: ${new Date(song.startTime).toLocaleDateString('ko-KR')} | 
+                                조회수: ${song.viewCounter?.toLocaleString() || 'N/A'}회
+                            </div>
+                            <a href="https://www.nicovideo.jp/watch/${song.contentId}" target="_blank">
+                                🎬 니코니코에서 보기
+                            </a>
+                        </div>
+                    </div>
+                `).join('')}
+            `;
+        }
+
+        // 폼 이벤트 리스너
+        document.getElementById('searchForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const birthdayInput = document.getElementById('birthday').value;
+            const maxCount = parseInt(document.getElementById('maxCount').value) || 50;
+            
+            if (!birthdayInput) return;
+            
+            const date = new Date(birthdayInput);
+            const month = date.getMonth() + 1;
+            const day = date.getDate();
+            
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('results').innerHTML = '';
+            
+            try {
+                const songs = await searchVocaloidSongs(month, day, maxCount);
+                displayResults(songs, month, day);
+            } catch (error) {
+                document.getElementById('results').innerHTML = 
+                    '<p>❌ 검색 중 오류가 발생했습니다: ' + error.message + '</p>';
+                console.error('검색 오류:', error);
+            }
+            
+            document.getElementById('loading').style.display = 'none';
+        });
+    </script>
+</body>
+</html>
